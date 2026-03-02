@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝贝成长册</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <span class="title-icon">🌸</span>
+                    宝贝成长册
+                    <span class="title-icon">🌸</span>
+                </h1>
+                <p class="subtitle">记录每一天的美好瞬间</p>
+                <p class="sync-status" id="sync-status">💾 本地存储</p>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 标签切换 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="calendar">📅 日历视图</button>
+                <button class="tab-btn" data-timeline="timeline">📖 成长时间线</button>
+            </div>
+
+            <!-- 日历视图 -->
+            <section id="calendar-view" class="view-section active">
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button class="month-nav" id="prev-month">&lt;</button>
+                        <h2 id="current-month">2024年1月</h2>
+                        <button class="month-nav" id="next-month">&gt;</button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                    </div>
+                    <div class="calendar-days" id="calendar-days">
+                        <!-- 日历日期将通过JS生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 时间线视图 -->
+            <section id="timeline-view" class="view-section">
+                <div class="timeline-container" id="timeline-container">
+                    <!-- 时间线内容将通过JS生成 -->
+                    <div class="empty-state">
+                        <p class="empty-icon">📷</p>
+                        <p>还没有记录哦</p>
+                        <p class="empty-hint">点击日历上的日期开始记录吧</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部操作栏 -->
+        <footer class="footer">
+            <button class="btn btn-secondary" id="settings-btn">
+                ⚙️ 云同步设置
+            </button>
+            <button class="btn btn-primary" id="export-btn">
+                📥 导出PDF成长册
+            </button>
+            <button class="btn btn-secondary" id="clear-btn">
+                🗑️ 清空数据
+            </button>
+        </footer>
+    </div>
+
+    <!-- 记录编辑弹窗 -->
+    <div class="modal" id="record-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">添加记录</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="record-form">
+                    <input type="hidden" id="record-id">
+                    <div class="form-group">
+                        <label for="record-date">日期</label>
+                        <input type="date" id="record-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="record-title">标题</label>
+                        <input type="text" id="record-title" placeholder="今天最难忘的事..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="record-content">记录</label>
+                        <textarea id="record-content" rows="4" placeholder="写下今天的趣事、成长感言..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>照片</label>
+                        <div class="file-upload-area" id="photo-upload">
+                            <input type="file" id="photo-input" accept="image/*" multiple hidden>
+                            <div class="upload-prompt">
+                                <span class="upload-icon">📷</span>
+                                <span>点击上传照片</span>
+                            </div>
+                            <div class="preview-grid" id="photo-preview"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>视频</label>
+                        <div class="file-upload-area" id="video-upload">
+                            <input type="file" id="video-input" accept="video/*" multiple hidden>
+                            <div class="upload-prompt">
+                                <span class="upload-icon">🎬</span>
+                                <span>点击上传视频</span>
+                            </div>
+                            <div class="preview-grid" id="video-preview"></div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+                        <button type="submit" class="btn btn-primary">保存记录</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 记录详情弹窗 -->
+    <div class="modal" id="detail-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detail-title">记录详情</h2>
+                <button class="modal-close" id="detail-close">&times;</button>
+            </div>
+            <div class="modal-body" id="detail-content">
+                <!-- 详情内容将通过JS生成 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="edit-record-btn">编辑</button>
+                <button class="btn btn-danger" id="delete-record-btn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF导出预览弹窗 -->
+    <div class="modal" id="pdf-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>成长册预览</h2>
+                <button class="modal-close" id="pdf-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="pdf-preview" class="pdf-preview">
+                    <!-- PDF预览内容将通过JS生成 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="pdf-cancel-btn">取消</button>
+                <button class="btn btn-primary" id="pdf-download-btn">下载PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 云同步设置弹窗 -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>☁️ 云同步设置</h2>
+                <button class="modal-close" id="settings-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sync-info">
+                    <p>开启云同步后，您的成长册数据将自动保存到GitHub Gist，换设备也能同步查看！</p>
+                </div>
+                <div class="form-group">
+                    <label for="github-token">GitHub Personal Access Token</label>
+                    <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx">
+                    <p class="form-hint">
+                        <a href="https://github.com/settings/tokens/new?scopes=gist&description=成长册数据备份" target="_blank">
+                            点击这里创建Token
+                        </a>
+                        (需要勾选 Gist 权限)
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="sync-enabled">
+                        开启云同步
+                    </label>
+                </div>
+                <div class="form-group" id="gist-id-group" style="display: none;">
+                    <label for="gist-id">Gist ID</label>
+                    <input type="text" id="gist-id" placeholder="自动生成" readonly>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="settings-cancel-btn">取消</button>
+                    <button type="button" class="btn btn-primary" id="settings-save-btn">保存设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
