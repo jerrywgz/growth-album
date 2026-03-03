@@ -220,6 +220,7 @@ function openRecordModal(date, record = null) {
     document.getElementById('record-date').value = date;
     document.getElementById('record-title').value = record?.title || '';
     document.getElementById('record-content').value = record?.content || '';
+    document.getElementById('photo-size').value = record?.photoSize || '';
 
     // 清除待上传文件
     pendingPhotos = [];
@@ -335,6 +336,7 @@ async function handleRecordSubmit(e) {
     const date = document.getElementById('record-date').value;
     const title = document.getElementById('record-title').value;
     const content = document.getElementById('record-content').value;
+    const photoSize = document.getElementById('photo-size').value;
 
     // 获取已有记录的文件（如果编辑模式）
     let photos = [];
@@ -361,6 +363,7 @@ async function handleRecordSubmit(e) {
         date,
         title,
         content,
+        photoSize,
         photos,
         videos,
         createdAt: editingRecord?.createdAt || Date.now(),
@@ -480,6 +483,7 @@ async function loadRecords() {
                 <div class="timeline-date">${dateStr}</div>
                 <div class="timeline-title">${escapeHtml(record.title)}</div>
                 <div class="timeline-content">${escapeHtml(record.content)}</div>
+                ${record.photoSize ? `<div class="timeline-size">📏 照片尺寸: ${escapeHtml(record.photoSize)}</div>` : ''}
                 ${mediaHtml ? `<div class="timeline-media">${mediaHtml}</div>` : ''}
             </div>
         `;
@@ -504,6 +508,7 @@ function openDetailModal(record) {
     document.getElementById('detail-title').textContent = record.title;
     document.getElementById('detail-content').innerHTML = `
         <p style="color: var(--primary-dark); margin-bottom: 15px;">${dateStr}</p>
+        ${record.photoSize ? `<p style="color: var(--text-secondary); margin-bottom: 15px;">📏 照片尺寸: ${escapeHtml(record.photoSize)}</p>` : ''}
         <p style="line-height: 1.8; margin-bottom: 20px;">${escapeHtml(record.content) || '暂无文字记录'}</p>
         ${renderDetailMedia(record)}
     `;
@@ -591,6 +596,7 @@ async function exportToPDF() {
             <div style="background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 20px rgba(255, 182, 193, 0.3);">
                 <div style="color: #FF8FA3; font-weight: 500; margin-bottom: 10px;">${dateStr}</div>
                 <h3 style="font-size: 1.3rem; color: #5D4E60; margin-bottom: 12px;">${escapeHtml(record.title)}</h3>
+                ${record.photoSize ? `<p style="color: #FF8FA3; margin-bottom: 10px;">📏 照片尺寸: ${escapeHtml(record.photoSize)}</p>` : ''}
                 <p style="line-height: 1.8; color: #8B7B8C; margin-bottom: 15px;">${escapeHtml(record.content) || '暂无文字记录'}</p>
                 ${renderPdfMedia(record)}
             </div>
@@ -601,19 +607,127 @@ async function exportToPDF() {
     elements.pdfModal.classList.add('active');
 }
 
+// 解析照片尺寸字符串并转换为PDF中的像素大小
+function parsePhotoSize(sizeStr) {
+    try {
+        if (!sizeStr || typeof sizeStr !== 'string') {
+            return null;
+        }
+
+        const trimmedSize = sizeStr.trim().toLowerCase();
+        if (!trimmedSize) {
+            return null;
+        }
+
+        // 常见照片尺寸（单位：像素）
+        const sizeMap = {
+            '1寸': { w: 91, h: 137 },
+            '2寸': { w: 137, h: 198 },
+            '大1寸': { w: 119, h: 173 },
+            '小2寸': { w: 119, h: 173 },
+            '4r': { w: 152, h: 102 },
+            '6寸': { w: 152, h: 102 },
+            '5r': { w: 127, h: 178 },
+            '7寸': { w: 127, h: 178 },
+            '6r': { w: 203, h: 152 },
+            '8寸': { w: 203, h: 152 },
+            '8r': { w: 203, h: 254 },
+            '10寸': { w: 203, h: 254 },
+            '12寸': { w: 254, h: 305 },
+            '14寸': { w: 305, h: 356 },
+            '16寸': { w: 356, h: 406 },
+            '20寸': { w: 406, h: 508 },
+            'a4': { w: 794, h: 1123 },
+            'a5': { w: 559, h: 794 },
+            'a3': { w: 1123, h: 1587 }
+        };
+
+        // 精确匹配
+        if (sizeMap[trimmedSize]) {
+            return sizeMap[trimmedSize];
+        }
+
+        // 匹配寸格式
+        var cunMatch = trimmedSize.match(/^(\d+)寸?$/);
+        if (cunMatch) {
+            var num = parseInt(cunMatch[1], 10);
+            if (num > 0 && num <= 20) {
+                return { w: Math.round(91 * num), h: Math.round(137 * num) };
+            }
+        }
+
+        // 匹配R格式
+        var rMatch = trimmedSize.match(/^(\d+)[rr]$/);
+        if (rMatch) {
+            var num = parseInt(rMatch[1], 10);
+            var sizeMapR = {
+                4: { w: 152, h: 102 },
+                5: { w: 127, h: 178 },
+                6: { w: 203, h: 152 },
+                8: { w: 203, h: 254 },
+                10: { w: 254, h: 305 },
+                12: { w: 254, h: 305 },
+                14: { w: 305, h: 356 },
+                16: { w: 356, h: 406 },
+                20: { w: 406, h: 508 }
+            };
+            if (sizeMapR[num]) {
+                return sizeMapR[num];
+            }
+        }
+
+        // 匹配cm格式
+        var cmMatch = trimmedSize.match(/^(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*cm?$/);
+        if (cmMatch) {
+            var w = parseFloat(cmMatch[1]);
+            var h = parseFloat(cmMatch[2]);
+            if (w > 0 && h > 0) {
+                return { w: Math.round(w * 37.8), h: Math.round(h * 37.8) };
+            }
+        }
+
+        // 匹配纯数字
+        var numMatch = trimmedSize.match(/^(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)$/);
+        if (numMatch) {
+            var w = parseFloat(numMatch[1]);
+            var h = parseFloat(numMatch[2]);
+            if (w > 0 && h > 0) {
+                return { w: Math.round(w * 37.8), h: Math.round(h * 37.8) };
+            }
+        }
+
+        // 关键词估算
+        if (trimmedSize.indexOf('大') !== -1) {
+            return { w: 220, h: 150 };
+        } else if (trimmedSize.indexOf('小') !== -1) {
+            return { w: 120, h: 80 };
+        }
+
+        return null;
+    } catch (e) {
+        console.error('解析照片尺寸出错:', e);
+        return null;
+    }
+}
+
 // 渲染PDF媒体
 function renderPdfMedia(record) {
     let html = '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">';
 
+    // 解析照片尺寸
+    const sizeInfo = parsePhotoSize(record.photoSize);
+    const baseWidth = sizeInfo ? Math.min(sizeInfo.w, 350) : 180; // 最大宽度限制
+    const baseHeight = sizeInfo ? Math.min(sizeInfo.h, 250) : 120;
+
     if (record.photos && record.photos.length > 0) {
         record.photos.forEach(photo => {
-            html += `<img src="${photo}" style="max-width: 180px; max-height: 120px; border-radius: 12px; object-fit: cover;">`;
+            html += `<img src="${photo}" style="width: ${baseWidth}px; height: ${baseHeight}px; border-radius: 12px; object-fit: cover;">`;
         });
     }
 
     if (record.videos && record.videos.length > 0) {
         record.videos.forEach(video => {
-            html += `<video src="${video}" controls style="max-width: 180px; max-height: 120px; border-radius: 12px;"></video>`;
+            html += `<video src="${video}" controls style="width: ${baseWidth}px; height: ${baseHeight}px; border-radius: 12px;"></video>`;
         });
     }
 
